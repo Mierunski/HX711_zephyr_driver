@@ -16,7 +16,7 @@
 
 #include "hx711.h"
 
-#define SAMPLE_FETCH_TIMEOUT_MS 600
+#define SAMPLE_FETCH_TIMEOUT_MS 1000
 
 LOG_MODULE_REGISTER(HX711, CONFIG_SENSOR_LOG_LEVEL);
 
@@ -517,6 +517,10 @@ int avia_hx711_power(const struct device *dev, enum hx711_power pow)
 	data->power = pow;
 	switch (pow) {
 	case HX711_POWER_ON:
+                gpio_pin_configure(data->dout_gpio, hx711_config.dout_pin,
+                                   GPIO_INPUT | hx711_config.dout_flags);
+                gpio_pin_configure(data->sck_gpio, hx711_config.sck_pin,
+                                   GPIO_OUTPUT_INACTIVE | hx711_config.sck_flags);
 		ret = gpio_pin_set(data->sck_gpio, hx711_config.sck_pin, data->power);
 		/* Fetch a sample to set GAIN again.
 		 * GAIN is set to 128 channel A after RESET
@@ -525,6 +529,9 @@ int avia_hx711_power(const struct device *dev, enum hx711_power pow)
 		return ret;
 	case HX711_POWER_OFF:
 		ret = gpio_pin_set(data->sck_gpio, hx711_config.sck_pin, data->power);
+                gpio_pin_configure(data->sck_gpio, hx711_config.sck_pin,
+                                   GPIO_DISCONNECTED);
+                gpio_pin_configure(data->dout_gpio, hx711_config.dout_pin, GPIO_DISCONNECTED);
 		return ret;
 	default:
 		return -ENOTSUP;
@@ -566,6 +573,5 @@ static const struct sensor_driver_api hx711_api = {
 	.attr_set = hx711_attr_set,
 };
 
-PM_DEVICE_DT_DEFINE(DT_DRV_INST(0), hx711_pm_ctrl);
-DEVICE_DT_INST_DEFINE(0, hx711_init, PM_DEVICE_DT_GET(DT_DRV_INST(0)), &hx711_data, &hx711_config, POST_KERNEL,
+DEVICE_DT_INST_DEFINE(0, hx711_init, NULL, &hx711_data, &hx711_config, POST_KERNEL,
 		      CONFIG_SENSOR_INIT_PRIORITY, &hx711_api);
